@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { authAPI } from '../api';
 
 const AuthContext = createContext(null);
@@ -47,8 +47,8 @@ export const AuthProvider = ({ children }) => {
     return userData;
   };
 
-  const register = async (data) => {
-    const response = await authAPI.register(data);
+  const setupAdmin = async (data) => {
+    const response = await authAPI.setup(data);
     const { access_token, user: userData } = response.data;
     
     localStorage.setItem('token', access_token);
@@ -59,6 +59,15 @@ export const AuthProvider = ({ children }) => {
     
     return userData;
   };
+
+  const checkSetup = useCallback(async () => {
+    try {
+      const response = await authAPI.checkSetup();
+      return response.data.setup_required;
+    } catch (error) {
+      return false;
+    }
+  }, []);
 
   const logout = () => {
     localStorage.removeItem('token');
@@ -79,7 +88,8 @@ export const AuthProvider = ({ children }) => {
       loading,
       isAuthenticated,
       login,
-      register,
+      setupAdmin,
+      checkSetup,
       logout,
       hasRole,
     }}>
