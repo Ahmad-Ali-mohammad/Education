@@ -1,13 +1,14 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import Icon from '../components/Icon';
 import { useAuth } from '../context/AuthContext';
 
 const LoginPage = ({ navigate }) => {
   const { t } = useTranslation();
-  const { login, register } = useAuth();
-  const [isRegister, setIsRegister] = useState(false);
-  const [loading, setLoading] = useState(false);
+  const { login, setupAdmin, checkSetup } = useAuth();
+  const [isSetup, setIsSetup] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
   
   const [formData, setFormData] = useState({
@@ -16,29 +17,44 @@ const LoginPage = ({ navigate }) => {
     name: ''
   });
   
+  useEffect(() => {
+    checkSetup().then(needsSetup => {
+      setIsSetup(needsSetup);
+      setLoading(false);
+    });
+  }, [checkSetup]);
+  
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setLoading(true);
+    setSubmitting(true);
     setError('');
     
     try {
-      if (isRegister) {
-        await register({
+      if (isSetup) {
+        await setupAdmin({
           email: formData.email,
           password: formData.password,
           name: formData.name,
-          role: 'viewer'
+          role: 'admin'
         });
       } else {
         await login(formData.email, formData.password);
       }
       navigate('/admin/dashboard');
     } catch (err) {
-      setError(err.response?.data?.detail || t('error'));
+      setError(err.response?.data?.detail || 'حدث خطأ في تسجيل الدخول');
     } finally {
-      setLoading(false);
+      setSubmitting(false);
     }
   };
+  
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-900">
+        <Icon name="Loader2" className="animate-spin text-white" size={40} />
+      </div>
+    );
+  }
   
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-slate-900 flex items-center justify-center p-4">
@@ -46,13 +62,15 @@ const LoginPage = ({ navigate }) => {
         <div className="p-8">
           <div className="text-center mb-8">
             <div className="w-16 h-16 bg-blue-500 rounded-full flex items-center justify-center mx-auto mb-4">
-              <Icon name="Lock" size={32} className="text-white" />
+              <Icon name={isSetup ? "Settings" : "Lock"} size={32} className="text-white" />
             </div>
             <h2 className="text-2xl font-bold text-slate-800">
-              {isRegister ? 'إنشاء حساب جديد' : 'تسجيل الدخول'}
+              {isSetup ? 'إعداد النظام' : 'لوحة التحكم'}
             </h2>
             <p className="text-slate-500 mt-2">
-              {isRegister ? 'أنشئ حسابك للوصول إلى لوحة التحكم' : 'ادخل بياناتك للوصول إلى لوحة التحكم'}
+              {isSetup 
+                ? 'مرحباً! قم بإنشاء حساب المسؤول الأول'
+                : 'هذه المنطقة محصورة للمسؤولين فقط'}
             </p>
           </div>
           
@@ -63,23 +81,23 @@ const LoginPage = ({ navigate }) => {
           )}
           
           <form onSubmit={handleSubmit} className="space-y-4">
-            {isRegister && (
+            {isSetup && (
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">{t('name')}</label>
+                <label className="block text-sm font-medium text-slate-700 mb-1">الاسم</label>
                 <input
                   type="text"
                   value={formData.name}
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                   className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  placeholder="الاسم الكامل"
+                  placeholder="اسم المسؤول"
                   required
-                  data-testid="register-name"
+                  data-testid="setup-name"
                 />
               </div>
             )}
             
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">{t('email')}</label>
+              <label className="block text-sm font-medium text-slate-700 mb-1">البريد الإلكتروني</label>
               <input
                 type="email"
                 value={formData.email}
@@ -92,7 +110,7 @@ const LoginPage = ({ navigate }) => {
             </div>
             
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">{t('password')}</label>
+              <label className="block text-sm font-medium text-slate-700 mb-1">كلمة المرور</label>
               <input
                 type="password"
                 value={formData.password}
@@ -106,35 +124,28 @@ const LoginPage = ({ navigate }) => {
             
             <button
               type="submit"
-              disabled={loading}
+              disabled={submitting}
               className="w-full bg-blue-500 text-white py-3 rounded-lg font-bold hover:bg-blue-600 transition disabled:opacity-50 flex items-center justify-center gap-2"
               data-testid="login-submit"
             >
-              {loading ? (
+              {submitting ? (
                 <Icon name="Loader2" className="animate-spin" size={20} />
               ) : (
                 <>
-                  <Icon name="LogIn" size={20} />
-                  {isRegister ? 'إنشاء الحساب' : 'دخول'}
+                  <Icon name={isSetup ? "Settings" : "LogIn"} size={20} />
+                  {isSetup ? 'إعداد النظام' : 'تسجيل الدخول'}
                 </>
               )}
             </button>
           </form>
           
-          <div className="mt-6 text-center">
-            <button
-              onClick={() => {
-                setIsRegister(!isRegister);
-                setError('');
-              }}
-              className="text-blue-500 hover:underline text-sm"
-              data-testid="toggle-auth"
-            >
-              {isRegister ? 'لديك حساب؟ سجل دخول' : 'ليس لديك حساب؟ أنشئ حساب'}
-            </button>
-          </div>
+          {!isSetup && (
+            <p className="text-center text-slate-400 text-sm mt-4">
+              للحصول على صلاحيات الدخول، تواصل مع مسؤول النظام
+            </p>
+          )}
           
-          <div className="mt-4 text-center">
+          <div className="mt-6 text-center">
             <button
               onClick={() => navigate('/')}
               className="text-slate-500 hover:text-slate-700 text-sm flex items-center justify-center gap-1 mx-auto"
