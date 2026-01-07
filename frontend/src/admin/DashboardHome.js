@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import Icon from '../../components/Icon';
-import { useContent } from '../../context/ContentContext';
-import { analyticsAPI } from '../../api';
+import Icon from '../components/Icon';
+import { useContent } from '../context/ContentContext';
+import { analyticsAPI } from '../api';
 
 const DashboardHome = () => {
   const { t } = useTranslation();
