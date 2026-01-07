@@ -274,27 +274,32 @@ def require_role(allowed_roles: List[str]):
 
 # ============ AUTH ROUTES ============
 
-@api_router.post("/auth/register")
-async def register(user_data: UserCreate):
-    existing = await db.users.find_one({"email": user_data.email})
-    if existing:
-        raise HTTPException(status_code=400, detail="Email already registered")
+# التسجيل محظور - فقط المسؤول يمكنه إضافة مستخدمين جدد عبر /api/users
+# هذا الـ endpoint يستخدم فقط لإنشاء أول مستخدم (المسؤول الأول)
+@api_router.post("/auth/setup")
+async def initial_setup(user_data: UserCreate):
+    """إنشاء المسؤول الأول فقط - يعمل مرة واحدة"""
+    count = await db.users.count_documents({})
+    if count > 0:
+        raise HTTPException(status_code=403, detail="النظام مُعد مسبقاً. تواصل مع المسؤول.")
     
     user_dict = user_data.model_dump()
     user_dict["id"] = str(uuid.uuid4())
     user_dict["password"] = get_password_hash(user_data.password)
     user_dict["created_at"] = datetime.now(timezone.utc).isoformat()
-    
-    # First user is admin
-    count = await db.users.count_documents({})
-    if count == 0:
-        user_dict["role"] = "admin"
+    user_dict["role"] = "admin"  # أول مستخدم يكون دائماً مسؤول
     
     await db.users.insert_one(user_dict)
     
     access_token = create_access_token({"sub": user_dict["id"]})
     user_response = {k: v for k, v in user_dict.items() if k != "password" and k != "_id"}
     return {"access_token": access_token, "token_type": "bearer", "user": user_response}
+
+@api_router.get("/auth/check-setup")
+async def check_setup():
+    """التحقق من وجود مستخدمين في النظام"""
+    count = await db.users.count_documents({})
+    return {"setup_required": count == 0}
 
 @api_router.post("/auth/login")
 async def login(login_data: LoginRequest):
