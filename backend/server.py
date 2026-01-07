@@ -274,7 +274,7 @@ def require_role(allowed_roles: List[str]):
 
 # ============ AUTH ROUTES ============
 
-@api_router.post("/auth/register", response_model=Token)
+@api_router.post("/auth/register")
 async def register(user_data: UserCreate):
     existing = await db.users.find_one({"email": user_data.email})
     if existing:
@@ -293,8 +293,8 @@ async def register(user_data: UserCreate):
     await db.users.insert_one(user_dict)
     
     access_token = create_access_token({"sub": user_dict["id"]})
-    user_response = {k: v for k, v in user_dict.items() if k != "password"}
-    return Token(access_token=access_token, token_type="bearer", user=user_response)
+    user_response = {k: v for k, v in user_dict.items() if k != "password" and k != "_id"}
+    return {"access_token": access_token, "token_type": "bearer", "user": user_response}
 
 @api_router.post("/auth/login", response_model=Token)
 async def login(login_data: LoginRequest):
