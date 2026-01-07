@@ -296,17 +296,17 @@ async def register(user_data: UserCreate):
     user_response = {k: v for k, v in user_dict.items() if k != "password" and k != "_id"}
     return {"access_token": access_token, "token_type": "bearer", "user": user_response}
 
-@api_router.post("/auth/login", response_model=Token)
+@api_router.post("/auth/login")
 async def login(login_data: LoginRequest):
-    user = await db.users.find_one({"email": login_data.email}, {"_id": 0})
+    user = await db.users.find_one({"email": login_data.email})
     if not user or not verify_password(login_data.password, user.get("password", "")):
         raise HTTPException(status_code=401, detail="Invalid credentials")
     if not user.get("is_active", True):
         raise HTTPException(status_code=403, detail="Account disabled")
     
     access_token = create_access_token({"sub": user["id"]})
-    user_response = {k: v for k, v in user.items() if k != "password"}
-    return Token(access_token=access_token, token_type="bearer", user=user_response)
+    user_response = {k: v for k, v in user.items() if k != "password" and k != "_id"}
+    return {"access_token": access_token, "token_type": "bearer", "user": user_response}
 
 @api_router.get("/auth/me")
 async def get_me(user: dict = Depends(get_current_user)):
